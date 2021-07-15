@@ -1,25 +1,25 @@
 {
   "name": "jxnginx",
-  "version": "1.0.1",
+  "version": "1.0.15",
   "description": "",
-  "main": "ConfParser.ts",
+  "main": "./dist/ConfParser.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "ts-node test.ts",
-    "build":"tsc test.ts"
+    "dev": "tsc && node ./dist/test.js"
   },
   "bin": {
-    "jxnginx": "ConfParser.ts"
+    "jxnginx": "./dist/ConfParser.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "dependencies": {
-    "@webantic/nginx-config-parser": "^1.1.0",
-    "typescript": "^3.6.4"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "typescript": "^3.6.4",
     "@types/node": "^12.11.2",
     "ts-node": "^8.4.1"
-  }
+  },
+  "__npminstall_done": "Thu Jul 15 2021 09:45:28 GMT+0800 (GMT+08:00)",
+  "_from": "jxnginx@1.0.15",
+  "_resolved": "https://registry.nlark.com/jxnginx/download/jxnginx-1.0.15.tgz"
 }

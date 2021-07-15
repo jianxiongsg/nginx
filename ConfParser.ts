@@ -1,6 +1,9 @@
 #!/usr/bin/env node
+
+
 let path = require("path");
 let fs = require("fs");
+
 let consign = "____";
 let config={
   ssl:{
@@ -26,7 +29,7 @@ export interface LocationInfo{
   proxy_buffers?:string;
   proxy_busy_buffers_size?:string;
   proxy_temp_file_write_size?:string;
-  proxy_redirect?:string
+  proxy_redirect?:string;
 }
 
 export interface SSLInfo{
@@ -55,10 +58,17 @@ export default class ConfParser{
     srcFile:string;
     private conf:any;
     private confJson:any;
-    constructor(srcFile){
+    private brStr:string;
+    constructor(srcFile:string){
         this.srcFile = srcFile;
-        this.conf = this.readFile();
-        this.confJson = this.toJson();
+        this.brStr = "\n";
+        this.initData();
+
+    }
+
+    initData(){
+      this.conf = this.readFile();
+      this.confJson = this.toJson();
     }
 
     readFile(){
@@ -87,9 +97,11 @@ export default class ConfParser{
           
         if(info.server_name) this.confJson.http.server.server_name = info.server_name;
         }else{
-          for(let idx in info){
-            this.confJson.http.server[idx] = info[idx];
-          }
+          // for(let idx in info){
+          //   this.confJson.http.server[idx] = info[idx];
+          // }
+          if(info.listen) this.confJson.http.server.listen = info.listen;
+          if(info.server_name) this.confJson.http.server.server_name = info.server_name;
         }
         
       } catch (error) {
@@ -115,10 +127,13 @@ export default class ConfParser{
                 break;
               }
             }
+            if(!isSet){
+              this.confJson.http.server.listen.push(info.listen)
+            }
+          }else{
+            this.confJson.http.server.listen = info.listen
           }
-          if(!isSet){
-            this.confJson.http.server.push(info.listen)
-          }
+          
             
           
         }else{
@@ -157,13 +172,18 @@ export default class ConfParser{
           throw new Error("路由存在");
         }
         this.confJson.http.server[locationName] = {};
-        for(let idx in info){
-          this.confJson.http.server[locationName][idx] = info[idx];
-        }
-        let rootPath = this.confJson.http.server[locationName].root;
-        if(!rootPath.startsWith("./")){
-          this.confJson.http.server[locationName].root = path.resolve(__dirname,rootPath)
-        }
+        // for(let idx in info){
+        //   this.confJson.http.server[locationName][idx] = info[idx];
+        // }
+          let rootPath = info.root;
+          if(!rootPath.startsWith("./")){
+            this.confJson.http.server[locationName].root = path.resolve(__dirname,rootPath)
+          }else{
+            this.confJson.http.server[locationName].root = rootPath;
+          }
+          if(info.index) this.confJson.http.server[locationName].index = info.index;
+          if(info.try_files) this.confJson.http.server[locationName].try_files = info.try_files;
+        
       } catch (error) {
         console.log(error)
         return false;
@@ -171,6 +191,7 @@ export default class ConfParser{
     }
 
     addLocation(name:string,info:LocationInfo){
+      let data = info as any;
       try {
         let locationName = "location "+name;
         if(this.confJson.http.server[locationName]){
@@ -178,7 +199,7 @@ export default class ConfParser{
         }
         this.confJson.http.server[locationName] = {};
         for(let idx in info){
-          this.confJson.http.server[locationName][idx] = info[idx];
+          this.confJson.http.server[locationName][idx] = data[idx];
         }
         return true;
       } catch (error) {
@@ -204,14 +225,15 @@ export default class ConfParser{
     }
 
     modifyLocation(name:string,info:LocationInfo){
+      let data = info as any;
       try {
         let locationName = "location "+name;
         if(this.confJson.http.server[locationName]){
           for(let idx in info){
-            if(!info[idx] || info[idx].length === 0){
+            if(!data[idx] || data[idx].length === 0){
               delete this.confJson.http.server[locationName][idx];
             }else{
-              this.confJson.http.server[locationName][idx] = info[idx];
+              this.confJson.http.server[locationName][idx] = data[idx];
             }
             
           }
@@ -244,15 +266,16 @@ export default class ConfParser{
       
     }
 
-    writeFile (filepath, data,needToConf= true) {
+    writeFile (filepath:string, data:any,needToConf= true) {
       try{
         if(needToConf && typeof data === "object"){
           data = this.toConf(data)
         }
         this.mkdirsSync(filepath);
         let toPath = path.resolve(filepath,this.getFileName(this.srcFile))
-        
-        return fs.writeFileSync(toPath, data)
+        fs.writeFileSync(toPath, data);
+        this.initData();
+        return true;
       }
       catch(error){
         console.log(error)
@@ -268,8 +291,8 @@ export default class ConfParser{
       return this.confJson;
     }
 
-    toConf(data){
-      const recurse = (obj, depth) => {
+    toConf(data:any){
+      const recurse = (obj:any, depth:any) => {
         let retVal = ''
         let longestKeyLen = 1
         const indent = ('    ').repeat(depth)
@@ -292,6 +315,7 @@ export default class ConfParser{
             retVal += recurse(val, depth + 1)
             retVal += indent + '}\n\n'
           } else {
+            // let nval = val.replace(this.brStr,'\n');
             retVal += indent + (key + keyValIndent + val).trim() + ';\n'
           }
         }
@@ -302,12 +326,15 @@ export default class ConfParser{
       return recurse(data, 0)
     }
 
-    private toJson(){
+    toJson(){
         const lines = this.conf.replace('\t', '').split('\n');
         let obj = {} // holds constructed json
         let parent:any;
         let parm:any;
-        lines.forEach(line => {
+        let pkey:string;
+        let pval:string;
+        let mark:string;
+        lines.forEach((line:any) => {
             line = line.trim() // prep for `startsWith` and `endsWith`
             // If line is blank line or is comment, do not process it
             if (!line || line.startsWith('#')) return;
@@ -342,19 +369,29 @@ export default class ConfParser{
                 Load external file config and merge it into current json structure
               */
             }else if (line.endsWith(';')) {
-              line = line.split(' ')
+              
+              if(pkey){
+                let val = line.slice(0, line.length - 1);
+                pval += this.brStr+val;
+                this.appendValue(obj,pkey,pval,parent);
+                pkey = null;
+                pval = null;
+              }else{
+                line = line.split(' ');
       
-              // Put the property name into `key`
-              let key = line.shift()
-              // Put the property value into `val`
-              let val = line.join(' ').trim()
-      
-              // If key ends with a semi-colon, remove that semi-colon
-              if (key.endsWith(';')) key = key.slice(0, key.length - 1)
-              // Remove trailing semi-colon from `val` (we established its
-              // presence already)
-              if(val.endsWith(';')) val = val.slice(0, val.length - 1)
-              this.appendValue(obj, key, val, parent)
+                // Put the property name into `key`
+                let key = line.shift()
+                // Put the property value into `val`
+                let val = line.join(' ').trim()
+        
+                // If key ends with a semi-colon, remove that semi-colon
+                if (key.endsWith(';')) key = key.slice(0, key.length - 1)
+                // Remove trailing semi-colon from `val` (we established its
+                // presence already)
+                if(val.endsWith(';')) val = val.slice(0, val.length - 1)
+                this.appendValue(obj, key, val, parent);
+              }
+              
               /*
                 3. Object closing line
                 Removes current deepest `key` from `parent`
@@ -365,7 +402,20 @@ export default class ConfParser{
               parent = parent.split(consign+parm)
               parent.pop()
               parent = parent.join(consign);
-              parm = null;
+              parm = "";
+            }else{
+              if (!pkey && !line.startsWith("'") && !line.startsWith('"') && (line.endsWith("'") || line.endsWith('"'))) {
+                mark = line.slice(line.length-1,line.length);
+                let idx = line.indexOf(mark);
+                pkey = "";
+                pval = "";
+                if (line.length > 2) {
+                    pval = line.slice(idx);
+                    pkey = line.slice(0,idx).trim() + "";
+                }
+              }else if (pkey) {
+                  pval += this.brStr + line;
+              }
             }
           })
           return obj;
@@ -373,7 +423,7 @@ export default class ConfParser{
 
 
 
-    private resolveSet (obj, parm, val) {
+    private resolveSet (obj:any, parm:any, val:any) {
       let components = parm.split(consign)
       let max = 30;
       while (components.length > 0) {
@@ -383,7 +433,7 @@ export default class ConfParser{
         if (components.length === 1) {
           obj[ components[ 0 ] ] = val
           return true
-        } else {
+        } else{
           obj = obj[ components.shift() ]
         }
         max--;
@@ -394,7 +444,7 @@ export default class ConfParser{
       return false
     }
 
-    private appendValue (obj, key, val, parent = undefined) {
+    private appendValue (obj:any, key:any, val:any, parent = undefined) {
       if (parent) {
         const existingVal = this.resolve(obj, parent + consign + key)
         if (existingVal) {
@@ -415,26 +465,16 @@ export default class ConfParser{
       }
     }
 
-    private resolve (obj, path) {
-      return path.split(consign).reduce((prev, curr) => {
+    private resolve (obj:any, path:string) {
+      return path.split(consign).reduce((prev:any, curr:any) => {
         return (typeof prev === 'object' && prev) ? prev[ curr ] : undefined
       }, obj)
     }
 
-    private connet(obj,v){
-      v = v.split(consign);
-      for(let i=0;i<v.length;++i){
-        let val = v[i];
-        if(!obj[val]){
-          obj[val] = {};
-        }
-        obj = obj[val];
-      }
-    }
-
+   
     
 
-    private mkdirsSync(dirname){
+    private mkdirsSync(dirname:string){
       if(fs.existsSync(dirname)){
         return true;
       }else{
@@ -445,7 +485,7 @@ export default class ConfParser{
       }
     }
 
-    private getFileName(path){
+    private getFileName(path:string){
       var pos1 = path.lastIndexOf('/');
       var pos2 = path.lastIndexOf('\\');
       var pos  = Math.max(pos1, pos2)

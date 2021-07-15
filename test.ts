@@ -1,9 +1,9 @@
 import ConfParser from "./ConfParser";
 
-let parser = new ConfParser("D:/nginx-1.17.4/conf/nginx.conf");
+let parser = new ConfParser("E:/gsfserver/nginxMgr/testfolder/nginx.conf");
 
-// let list = parser.listLocation();
-// console.log("list",list)
+let list = parser.listLocation();
+console.log("list",list)
 
 // parser.addLocation("/cc/",{
 //     proxy_pass:"http://127.0.0.1:111111/",
@@ -26,19 +26,19 @@ let parser = new ConfParser("D:/nginx-1.17.4/conf/nginx.conf");
 // parser.setStaticFolder("/root/test",{
 //     root:"./static/"
 // })
-parser.updateServer({
-    listen:"00000",
-})
-parser.setSSL({
-    listen:"444 ssl",
-    ssl_certificate:"cert/lovigame.com.pem",
-    ssl_certificate_key:"cert/lovigame.com.key"
-})
+// parser.updateServer({
+//     listen:"00000",
+// })
+// parser.setSSL({
+//     listen:"444 ssl",
+//     ssl_certificate:"cert/lovigame.com.pem",
+//     ssl_certificate_key:"cert/lovigame.com.key"
+// })
 
-let data = parser.getJson()
-// console.log(data.http.server.listen[1]);
+let data = parser.toJson()
+// console.log(data);
 
-parser.writeFile("C:/Users/admin/Desktop/test1/",data);
+parser.writeFile("E:/gsfserver/nginxMgr/testfolder/new/",data);
 
 
 // parser.writeFile('C:/Users/admin/Desktop/test1/',json)
